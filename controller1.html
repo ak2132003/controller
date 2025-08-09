@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8" />
+    <title>لوحة تحكم الجوائز وفحص التكرار</title>
+    <script src="https://unpkg.com/@supabase/supabase-js/dist/supabase.min.js"></script>
+    <style>
+        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f9f9f9; padding: 20px; }
+        .tabs { display: flex; margin-bottom: 10px; }
+        .tab-button { padding: 10px 20px; border: none; cursor: pointer; background: #ddd; margin-right: 5px; border-radius: 5px 5px 0 0; }
+        .tab-button.active { background: #4caf50; color: white; }
+        .panel { background: white; border: 1px solid #ccc; padding: 15px; border-radius: 0 5px 5px 5px; max-width: 600px; margin-bottom: 20px; }
+        button { cursor: pointer; margin-top: 10px; }
+        textarea { width: 100%; height: 100px; resize: vertical; }
+        select, input[type=file] { width: 100%; margin-top: 5px; }
+        #status { margin-top: 10px; padding: 10px; border-radius: 5px; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>لوحة تحكم الجوائز وفحص التكرار</h1>
+
+    <div class="tabs">
+        <button class="tab-button active" data-tab="uploadPanel">رفع روابط الجوائز</button>
+        <button class="tab-button" data-tab="checkPanel">فحص وتحميل التكرار</button>
+    </div>
+
+    <div id="uploadPanel" class="panel">
+        <!-- واجهة رفع روابط الجوائز (مقتبسة ومعدلة من السكربت الأول) -->
+        <label>اختر نوع الرابط:</label>
+        <select id="linkTypeSelect"></select>
+        <input type="file" id="fileInput" accept=".txt" />
+        <textarea id="manualLinks" placeholder="يمكنك كتابة الروابط هنا، كل رابط في سطر"></textarea>
+        <button id="uploadButton" style="background:#4caf50; color:white;">🚀 رفع الروابط</button>
+        <button id="deleteButton" style="background:#FF5733; color:white;">🗑️ حذف روابط النوع المحدد</button>
+        <button id="deleteAllButton" style="background:#FF4500; color:white;">🗑️ حذف جميع الروابط</button>
+        <button id="countButton" style="background:#2196F3; color:white;">📊 حساب عدد كل نوع</button>
+
+        <div id="uploadCounter" style="margin-top: 10px;">
+            <strong>الروابط المرفوعة: </strong><span id="currentUploadCount">0</span> / <span id="totalLinksCount">0</span>
+        </div>
+        <div id="uploadStatus" style="margin-top: 15px;"></div>
+    </div>
+
+    <div id="checkPanel" class="panel" style="display:none;">
+        <!-- واجهة فحص التكرار وتحميل الملف (مقتبسة ومعدلة من السكربت الثاني) -->
+        <button id="checkDuplicates" style="background:#FF9800; color:white;">🔍 فحص التكرار</button>
+        <button id="downloadUnique" style="background:#4caf50; color:white;">⬇️ تحميل الملف بدون تكرار</button>
+        <pre id="checkStatus" style="background:#eee; padding:10px; height:250px; overflow:auto;"></pre>
+    </div>
+
+    <script>
+        // إعداد Supabase
+        const SUPABASE_URL = 'https://wuauxagghhzqrxgotcqo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1YXV4YWdnaGh6cXJ4Z290Y3FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0NjU3NzYsImV4cCI6MjA2ODA0MTc3Nn0.W7Ayyfdh3qmrfzw_F5t35umQZRIdmqKENNdk3HYcNVE';
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // تعريف أنواع الروابط (كما في السكربت الأول)
+        const linkTypes = {
+            'Super Fertilizer': 'سماد خارق',
+            'Super Watering Can': 'دلو سقاية خارق',
+            'Bingo': 'بينجو',
+            'normalfert': '125 سماد طبيعي',
+            'Energy': 'طاقة',
+            'Energy2': '2طاقة',
+            'Yellow Package': 'حزمة صفراء',
+            'Green Package': 'حزمة خضراء',
+            'Yellow Coupons': 'قسائم صفراء',
+            'Purple Coupons': 'قسائم أرجوانية',
+            'Green Coupons': 'قسائم خضراء',
+            'Other': 'أخرى (عام)'
+        };
+
+        // ملئ select بأنواع الروابط
+        const linkTypeSelect = document.getElementById('linkTypeSelect');
+        for (const [key, value] of Object.entries(linkTypes)) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = value;
+            linkTypeSelect.appendChild(option);
+        }
+
+        // التبويبات
+        const tabs = document.querySelectorAll('.tab-button');
+        tabs.forEach(tab => {
+            tab.onclick = () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('uploadPanel').style.display = tab.dataset.tab === 'uploadPanel' ? 'block' : 'none';
+                document.getElementById('checkPanel').style.display = tab.dataset.tab === 'checkPanel' ? 'block' : 'none';
+            };
+        });
+
+        // رفع روابط الجوائز
+        const fileInput = document.getElementById('fileInput');
+        const manualLinks = document.getElementById('manualLinks');
+        const uploadButton = document.getElementById('uploadButton');
+        const deleteButton = document.getElementById('deleteButton');
+        const deleteAllButton = document.getElementById('deleteAllButton');
+        const countButton = document.getElementById('countButton');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const currentUploadCountElem = document.getElementById('currentUploadCount');
+        const totalLinksCountElem = document.getElementById('totalLinksCount');
+
+        let currentUploadCount = 0;
+        let totalLinksCount = 0;
+
+        function updateUploadStatus(message, type = 'info') {
+            uploadStatus.style.display = 'block';
+            uploadStatus.textContent = message;
+            const colors = {
+                success: '#2E7D32',
+                error: '#e74c3c',
+                warning: '#FDD835',
+                info: '#1e88e5',
+            };
+            uploadStatus.style.color = colors[type] || colors.info;
+        }
+
+        async function uploadLinks() {
+            const file = fileInput.files[0];
+            const manualInput = manualLinks.value.trim();
+            const selectedLinkType = linkTypeSelect.value;
+
+            if (!file && manualInput === '') {
+                updateUploadStatus('❌ من فضلك اختر ملفًا أو اكتب الروابط يدويًا!', 'error');
+                return;
+            }
+
+            let links = [];
+
+            if (file) {
+                const text = await file.text();
+                links = links.concat(text.split('\n').map(l => l.trim()));
+            }
+            if (manualInput) {
+                links = links.concat(manualInput.split('\n').map(l => l.trim()));
+            }
+
+            // تحقق من صحة الروابط (كما في السكربت)
+            const validLinks = links.filter(link => link.startsWith('https://apps.facebook.com/family-farm/ar/facebook'));
+            const invalidLinksCount = links.length - validLinks.length;
+
+            if (validLinks.length === 0) {
+                updateUploadStatus('⚠️ جميع الروابط غير صالحة! يجب أن تبدأ بـ https://apps.facebook.com/family-farm/ar/facebook', 'warning');
+                return;
+            }
+
+            totalLinksCount = validLinks.length;
+            totalLinksCountElem.textContent = totalLinksCount;
+            currentUploadCount = 0;
+            currentUploadCountElem.textContent = currentUploadCount;
+            updateUploadStatus('⏳ جاري رفع الروابط...', 'info');
+
+            for (const link of validLinks) {
+                const cleanedLink = link.replace(/^\d+\.\s*/, '').trim();
+                const { error } = await supabase
+                    .from('reward_links')
+                    .insert([{ link_url: cleanedLink, status: 'new', link_type: selectedLinkType }]);
+                if (!error) {
+                    currentUploadCount++;
+                    currentUploadCountElem.textContent = currentUploadCount;
+                }
+            }
+
+            let msg = `✅ تم رفع ${currentUploadCount} رابط بنجاح!`;
+            if (invalidLinksCount > 0) {
+                msg += ` ❌ تم تجاهل ${invalidLinksCount} رابط غير صالح.`;
+            }
+            updateUploadStatus(msg, 'success');
+        }
+
+        async function deleteLinksByType() {
+            const selectedLinkType = linkTypeSelect.value;
+            const { error } = await supabase.from('reward_links').delete().eq('link_type', selectedLinkType);
+            if (error) {
+                updateUploadStatus('❌ فشل في حذف الروابط!', 'error');
+                return;
+            }
+            updateUploadStatus(`✅ تم حذف جميع روابط النوع: ${linkTypes[selectedLinkType]}`, 'success');
+        }
+
+        async function deleteAllLinks() {
+            const { error } = await supabase.from('reward_links').delete();
+            if (error) {
+                updateUploadStatus('❌ فشل في حذف جميع الروابط!', 'error');
+                return;
+            }
+            updateUploadStatus('✅ تم حذف جميع الروابط بنجاح!', 'success');
+        }
+
+        async function countLinkTypes() {
+            updateUploadStatus('🔄 جاري حساب عدد كل نوع...', 'info');
+
+            let total = 0;
+            let output = '';
+            for (const [enType, arLabel] of Object.entries(linkTypes)) {
+                const { count, error } = await supabase
+                    .from('reward_links')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('link_type', enType);
+                if (error) {
+                    output += `${arLabel}: خطأ\n`;
+                } else {
+                    total += count;
+                    output += `${arLabel}: ${count}\n`;
+                }
+            }
+            updateUploadStatus(`📊 عدد الروابط لكل نوع:\n${output}إجمالي الروابط: ${total}`, 'info');
+        }
+
+        uploadButton.addEventListener('click', uploadLinks);
+        deleteButton.addEventListener('click', deleteLinksByType);
+        deleteAllButton.addEventListener('click', deleteAllLinks);
+        countButton.addEventListener('click', countLinkTypes);
+
+        // --- تبويب فحص التكرار ---
+
+        const checkStatus = document.getElementById('checkStatus');
+        const checkDuplicatesBtn = document.getElementById('checkDuplicates');
+        const downloadUniqueBtn = document.getElementById('downloadUnique');
+
+        async function fetchAllCheckRequests() {
+            let allData = [];
+            let from = 0;
+            const batchSize = 1000;
+            while (true) {
+                const { data, error } = await supabase
+                    .from('check_requests')
+                    .select('*')
+                    .range(from, from + batchSize - 1);
+                if (error) {
+                    alert('❌ حدث خطأ أثناء جلب البيانات من قاعدة البيانات.');
+                    return null;
+                }
+                if (!data || data.length === 0) break;
+                allData = allData.concat(data);
+                if (data.length < batchSize) break;
+                from += batchSize;
+            }
+            return allData;
+        }
+
+        checkDuplicatesBtn.onclick = async () => {
+            checkStatus.textContent = '... جاري جلب البيانات من قاعدة البيانات ...';
+            const data = await fetchAllCheckRequests();
+            if (!data) {
+                checkStatus.textContent = '❌ لم يتم جلب البيانات.';
+                return;
+            }
+            const totalRecords = data.length;
+            const countMap = {};
+            data.forEach(row => {
+                if (!countMap[row.uss]) {
+                    countMap[row.uss] = { count: 0, names: new Set(), firstHash: row.hash };
+                }
+                countMap[row.uss].count++;
+                countMap[row.uss].names.add(row.name);
+            });
+            const uniqueCount = Object.keys(countMap).length;
+            const totalRepeats = totalRecords - uniqueCount;
+
+            if (totalRepeats === 0) {
+                checkStatus.textContent = '✅ لا يوجد تكرار.';
+                return;
+            }
+
+            let msg = `🔍 عدد السجلات الكلي: ${totalRecords}\n`;
+            msg += `🔍 عدد الـ uss الفريدة: ${uniqueCount}\n`;
+            msg += `📊 عدد التكرارات الفعلية: ${totalRepeats}\n\n`;
+            for (const uss in countMap) {
+                const info = countMap[uss];
+                if (info.count > 1) {
+                    msg += `- ${[...info.names].join(', ')} — مكرر ${info.count} مرات\n`;
+                }
+            }
+            checkStatus.textContent = msg;
+        };
+
+        downloadUniqueBtn.onclick = async () => {
+            const data = await fetchAllCheckRequests();
+            if (!data) return;
+
+            const seen = new Set();
+            const lines = [];
+            for (const row of data) {
+                if (!seen.has(row.uss)) {
+                    seen.add(row.uss);
+                    lines.push(`${row.uss},${row.hash}`);
+                }
+            }
+
+            const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'unique_requests.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+    </script>
+
+</body>
+</html>
