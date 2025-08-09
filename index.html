@@ -288,16 +288,40 @@ uploadButton.addEventListener('click', async () => {
 
     const selectedType = linkTypeSelect.value;
     let successCount = 0;
+    let duplicateCount = 0;
 
-    // رفع كل رابط بشكل منفصل (تقدر تعدل لاستخدام batch لو تحب)
     for (const link of validLinks) {
+        // فحص وجود الرابط مسبقاً
+        const { data: existing, error: selectError } = await supabase
+            .from('reward_links')
+            .select('link_url')
+            .eq('link_url', link)
+            .limit(1)
+            .single();
+
+        if (selectError && selectError.code !== 'PGRST116') { 
+            // خطأ غير "لم يتم العثور"
+            updateStatus(`❌ خطأ في فحص الرابط: ${link}`, 'error');
+            continue;
+        }
+
+        if (existing) {
+            duplicateCount++;
+            continue; // تخطي الرابط لأنه مكرر
+        }
+
+        // إدخال الرابط لأنه غير موجود مسبقاً
         const { error } = await supabase
             .from('reward_links')
             .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
         if (!error) successCount++;
     }
 
-    updateStatus(`✅ تم رفع ${successCount} رابط بنجاح!${invalidCount > 0 ? ` ⚠️ تم تجاهل ${invalidCount} رابط غير صالح.` : ''}`, 'success');
+    let msg = `✅ تم رفع ${successCount} رابط جديد بنجاح!`;
+    if (duplicateCount > 0) msg += ` ⚠️ تم تجاهل ${duplicateCount} رابط مكرر.`;
+    if (invalidCount > 0) msg += ` ⚠️ تم تجاهل ${invalidCount} رابط غير صالح.`;
+
+    updateStatus(msg, 'success');
     fileInput.value = '';
     manualLinks.value = '';
 });
