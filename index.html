@@ -1,98 +1,172 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" >
 <head>
   <meta charset="UTF-8" />
-  <title>رفع روابط الجوائز إلى Supabase</title>
+  <title>لوحة إدارة الروابط و USS - د. أحمد خالد</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 600px;
-      margin: auto;
-      background: #f9f9f9;
-      color: #333;
+      margin: 20px auto;
+      max-width: 700px;
+      background: #f5f5f5;
+      color: #222;
+      direction: rtl;
     }
-    textarea {
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    nav button {
+      padding: 10px 15px;
+      border: none;
+      background: #ddd;
+      cursor: pointer;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    nav button.active {
+      background: #4caf50;
+      color: white;
+    }
+    section {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px 0;
+    }
+    select, textarea, input[type="text"], button {
       width: 100%;
-      height: 120px;
       padding: 8px;
       font-size: 1em;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      border-radius: 5px;
-      resize: vertical;
       box-sizing: border-box;
+      margin-bottom: 15px;
     }
-    select, button {
-      font-size: 1em;
-      padding: 10px 15px;
-      margin-top: 10px;
-      border-radius: 5px;
-      border: 1px solid #4caf50;
-      cursor: pointer;
-      box-sizing: border-box;
-    }
-    select {
-      width: 100%;
-      background: white;
-      color: #333;
-    }
-    button {
-      background-color: #4caf50;
+    button.primary {
+      background: #4caf50;
       color: white;
       border: none;
       font-weight: bold;
-      width: 100%;
+      cursor: pointer;
+      transition: background-color 0.3s;
     }
-    button:hover {
-      background-color: #45a049;
+    button.primary:hover {
+      background: #45a049;
     }
-    #status {
-      margin-top: 15px;
+    #status, #ussStatus {
       min-height: 30px;
       padding: 10px;
       border-radius: 5px;
       font-weight: bold;
+      margin-bottom: 10px;
+      display: none;
     }
-    #status.info { background-color: #e3f2fd; color: #1e88e5; }
-    #status.success { background-color: #e8f5e9; color: #2e7d32; }
-    #status.error { background-color: #fdecea; color: #e74c3c; }
-    #status.warning { background-color: #fffde7; color: #fdd835; }
+    #status.info, #ussStatus.info {
+      background-color: #e3f2fd;
+      color: #1e88e5;
+    }
+    #status.success, #ussStatus.success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    #status.error, #ussStatus.error {
+      background-color: #fdecea;
+      color: #e74c3c;
+    }
+    #status.warning, #ussStatus.warning {
+      background-color: #fffde7;
+      color: #fdd835;
+    }
+    pre {
+      background: #eee;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
 
-  <h2 style="text-align:center; margin-bottom: 20px;">🎁 رفع روابط الجوائز إلى Supabase</h2>
+  <h2>لوحة إدارة روابط الجوائز وبيانات USS - د. أحمد خالد</h2>
 
-  <label for="linkType">اختر نوع الرابط:</label>
-  <select id="linkType">
-    <option value="Super Fertilizer">سماد خارق</option>
-    <option value="Super Watering Can">دلو سقاية خارق</option>
-    <option value="Bingo">بينجو</option>
-    <option value="normalfert">125 سماد طبيعي</option>
-    <option value="Energy">طاقة</option>
-    <option value="Other">أخرى (عام)</option>
-  </select>
+  <nav>
+    <button id="tabLinksBtn" class="active">رفع روابط الجوائز</button>
+    <button id="tabUSSBtn">فحص وتحميل USS</button>
+  </nav>
 
-  <br /><br />
+  <!-- تبويب رفع روابط الجوائز -->
+  <section id="tabLinks" style="display:block;">
+    <label for="linkType">اختر نوع الرابط:</label>
+    <select id="linkType">
+      <option value="Super Fertilizer">سماد خارق</option>
+      <option value="Super Watering Can">دلو سقاية خارق</option>
+      <option value="Bingo">بينجو</option>
+      <option value="normalfert">125 سماد طبيعي</option>
+      <option value="Energy">طاقة</option>
+      <option value="Other">أخرى (عام)</option>
+    </select>
 
-  <label for="linksInput">أدخل الروابط (كل رابط في سطر جديد):</label>
-  <textarea id="linksInput" placeholder="https://example.com/link1
+    <label for="linksInput">أدخل الروابط (كل رابط في سطر جديد):</label>
+    <textarea id="linksInput" placeholder="https://example.com/link1
 https://example.com/link2"></textarea>
 
-  <button id="uploadBtn">🚀 رفع الروابط</button>
+    <button id="uploadBtn" class="primary">🚀 رفع الروابط</button>
 
-  <div id="status" class="info" style="display:none;"></div>
+    <div id="status" class="info"></div>
+  </section>
+
+  <!-- تبويب فحص وتحميل USS -->
+  <section id="tabUSS" style="display:none;">
+    <button id="checkDuplicatesBtn" class="primary">🔍 فحص التكرار</button>
+    <button id="downloadUniqueBtn" class="primary" style="margin-top:5px;">⬇️ تحميل ملف بدون تكرار</button>
+
+    <div id="ussStatus" class="info"></div>
+    <pre id="ussReport" style="display:none;"></pre>
+  </section>
 
   <script>
     // إعداد Supabase
     const SUPABASE_URL = 'https://wuauxagghhzqrxgotcqo.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1YXV4YWdnaGh6cXJ4Z290Y3FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0NjU3NzYsImV4cCI6MjA2ODA0MTc3Nn0.W7Ayyfdh3qmrfzw_F5t35umQZRIdmqKENNdk3HYcNVE';
-    const SUPABASE_TABLE = 'reward_links';
-
-    // أنشئ عميل Supabase (مهم: اسم المكتبة supabase وليس supabaseJs)
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // التبديل بين التبويبات
+    const tabLinksBtn = document.getElementById('tabLinksBtn');
+    const tabUSSBtn = document.getElementById('tabUSSBtn');
+    const tabLinks = document.getElementById('tabLinks');
+    const tabUSS = document.getElementById('tabUSS');
+
+    tabLinksBtn.onclick = () => {
+      tabLinks.style.display = 'block';
+      tabUSS.style.display = 'none';
+      tabLinksBtn.classList.add('active');
+      tabUSSBtn.classList.remove('active');
+      clearStatus();
+    };
+    tabUSSBtn.onclick = () => {
+      tabLinks.style.display = 'none';
+      tabUSS.style.display = 'block';
+      tabUSSBtn.classList.add('active');
+      tabLinksBtn.classList.remove('active');
+      clearUSSStatus();
+    };
+
+    // وظائف رفع روابط الجوائز
     const uploadBtn = document.getElementById('uploadBtn');
     const statusDiv = document.getElementById('status');
 
@@ -101,8 +175,13 @@ https://example.com/link2"></textarea>
       statusDiv.textContent = message;
       statusDiv.className = type;
     }
+    function clearStatus() {
+      statusDiv.style.display = 'none';
+      statusDiv.textContent = '';
+    }
 
     uploadBtn.addEventListener('click', async () => {
+      clearStatus();
       showStatus('⏳ جاري رفع الروابط...', 'info');
       const type = document.getElementById('linkType').value;
       const rawLinks = document.getElementById('linksInput').value.trim();
@@ -119,7 +198,7 @@ https://example.com/link2"></textarea>
       for (const link of links) {
         try {
           const { error } = await supabase
-            .from(SUPABASE_TABLE)
+            .from('reward_links')
             .insert([{ link_url: link, link_type: type, status: 'new' }]);
 
           if (!error) {
@@ -134,7 +213,139 @@ https://example.com/link2"></textarea>
 
       showStatus(`✅ تم رفع ${successCount} رابط من أصل ${links.length}.`, 'success');
     });
-  </script>
 
+    // وظائف فحص وتحميل USS
+    const checkDuplicatesBtn = document.getElementById('checkDuplicatesBtn');
+    const downloadUniqueBtn = document.getElementById('downloadUniqueBtn');
+    const ussStatus = document.getElementById('ussStatus');
+    const ussReport = document.getElementById('ussReport');
+
+    function showUSSStatus(message, type = 'info') {
+      ussStatus.style.display = 'block';
+      ussStatus.textContent = message;
+      ussStatus.className = type;
+    }
+    function clearUSSStatus() {
+      ussStatus.style.display = 'none';
+      ussStatus.textContent = '';
+      ussReport.style.display = 'none';
+      ussReport.textContent = '';
+    }
+
+    async function fetchAllCheckRequests() {
+      let allData = [];
+      let from = 0;
+      const batchSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('check_requests')
+          .select('*')
+          .range(from, from + batchSize -1);
+
+        if (error) {
+          console.error('خطأ Supabase:', error);
+          showUSSStatus('❌ حدث خطأ أثناء جلب البيانات من قاعدة البيانات.', 'error');
+          return null;
+        }
+        if (!data || data.length === 0) break;
+
+        allData = allData.concat(data);
+        if (data.length < batchSize) break;
+
+        from += batchSize;
+      }
+      return allData;
+    }
+
+    checkDuplicatesBtn.onclick = async () => {
+      clearUSSStatus();
+      showUSSStatus('... جاري جلب البيانات من قاعدة البيانات ...', 'info');
+      const data = await fetchAllCheckRequests();
+      if (!data) {
+        showUSSStatus('❌ لم يتم جلب البيانات.', 'error');
+        return;
+      }
+
+      const totalRecords = data.length;
+      const countMap = {};
+      data.forEach(row => {
+        if (!countMap[row.uss]) {
+          countMap[row.uss] = { count: 0, names: new Set(), firstHash: row.hash };
+        }
+        countMap[row.uss].count++;
+        if(row.name) countMap[row.uss].names.add(row.name);
+      });
+
+      const uniqueCount = Object.keys(countMap).length;
+      const totalRepeats = totalRecords - uniqueCount;
+
+      if (totalRepeats === 0) {
+        showUSSStatus('✅ لا يوجد تكرار.', 'success');
+        ussReport.style.display = 'none';
+        return;
+      }
+
+      let msg = `🔍 عدد السجلات الكلي: ${totalRecords}\n`;
+      msg += `🔍 عدد الـ uss الفريدة: ${uniqueCount}\n`;
+      msg += `📊 عدد التكرارات الفعلية: ${totalRepeats}\n\n`;
+
+      // عرض بعض الأمثلة على التكرار
+      const repeatedUSS = Object.entries(countMap)
+        .filter(([uss, info]) => info.count > 1)
+        .slice(0, 10);
+
+      if (repeatedUSS.length > 0) {
+        msg += 'أمثلة على USS المكررة:\n';
+        repeatedUSS.forEach(([uss, info]) => {
+          const names = Array.from(info.names).join(', ');
+          msg += `- uss: ${uss} (عدد التكرار: ${info.count})${names ? ' - أسماء: ' + names : ''}\n`;
+        });
+      }
+
+      ussReport.style.display = 'block';
+      ussReport.textContent = msg;
+      showUSSStatus('⚠️ تم العثور على تكرارات.', 'warning');
+    };
+
+    downloadUniqueBtn.onclick = async () => {
+      clearUSSStatus();
+      showUSSStatus('⏳ جاري جلب البيانات وتجهيز الملف...', 'info');
+
+      const data = await fetchAllCheckRequests();
+      if (!data) {
+        showUSSStatus('❌ لم يتم جلب البيانات.', 'error');
+        return;
+      }
+
+      // إزالة التكرار بناءً على uss، نأخذ أول ظهور فقط
+      const uniqueMap = new Map();
+      data.forEach(row => {
+        if (!uniqueMap.has(row.uss)) {
+          uniqueMap.set(row.uss, row);
+        }
+      });
+
+      // تجهيز نص الملف
+      let fileContent = 'uss,hash\n';
+      uniqueMap.forEach(row => {
+        fileContent += `${row.uss},${row.hash}\n`;
+      });
+
+      // إنشاء رابط تحميل وتنزيل الملف
+      const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'unique_uss_hash.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showUSSStatus(`✅ تم تجهيز وتحميل الملف بعد إزالة التكرارات (${uniqueMap.size} سجل).`, 'success');
+    };
+
+  </script>
 </body>
 </html>
