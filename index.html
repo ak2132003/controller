@@ -1,252 +1,386 @@
 <!DOCTYPE html>
-<html lang="ar" >
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <title>لوحة إدارة الروابط و USS - د. أحمد خالد</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>لوحة إدارة روابط الجوائز - د. أحمد خالد</title>
+<style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px auto;
-      max-width: 700px;
-      background: #f5f5f5;
-      color: #222;
-      direction: rtl;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #f5f8fa;
+        margin: 0; padding: 20px;
+        color: #333;
     }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
+    h1, h2 {
+        color: #2e7d32;
+        text-align: center;
     }
-    nav {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    nav button {
-      padding: 10px 15px;
-      border: none;
-      background: #ddd;
-      cursor: pointer;
-      border-radius: 5px;
-      font-weight: bold;
-    }
-    nav button.active {
-      background: #4caf50;
-      color: white;
-    }
-    section {
-      background: white;
-      padding: 15px 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px #ccc;
+    .container {
+        max-width: 800px;
+        margin: auto;
+        background: #fff;
+        padding: 25px 30px;
+        border-radius: 12px;
+        box-shadow: 0 6px 15px rgba(0,0,0,0.1);
     }
     label {
-      display: block;
-      margin: 10px 0 5px 0;
+        display: block;
+        margin: 15px 0 6px 0;
+        font-weight: bold;
     }
-    select, textarea, input[type="text"], button {
-      width: 100%;
-      padding: 8px;
-      font-size: 1em;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-      margin-bottom: 15px;
+    select, textarea, input[type="file"] {
+        width: 100%;
+        padding: 10px;
+        font-size: 1rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-sizing: border-box;
+        font-family: inherit;
+        resize: vertical;
     }
-    button.primary {
-      background: #4caf50;
-      color: white;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background-color 0.3s;
+    textarea {
+        min-height: 90px;
     }
-    button.primary:hover {
-      background: #45a049;
+    button {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 12px 20px;
+        margin: 10px 5px 0 0;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        user-select: none;
     }
-    #status, #ussStatus {
-      min-height: 30px;
-      padding: 10px;
-      border-radius: 5px;
-      font-weight: bold;
-      margin-bottom: 10px;
-      display: none;
+    button:hover:not(:disabled) {
+        background-color: #388e3c;
     }
-    #status.info, #ussStatus.info {
-      background-color: #e3f2fd;
-      color: #1e88e5;
+    button:disabled {
+        background-color: #a5d6a7;
+        cursor: not-allowed;
     }
-    #status.success, #ussStatus.success {
-      background-color: #e8f5e9;
-      color: #2e7d32;
+    .btn-danger {
+        background-color: #e53935;
     }
-    #status.error, #ussStatus.error {
-      background-color: #fdecea;
-      color: #e74c3c;
+    .btn-danger:hover:not(:disabled) {
+        background-color: #b71c1c;
     }
-    #status.warning, #ussStatus.warning {
-      background-color: #fffde7;
-      color: #fdd835;
+    .btn-info {
+        background-color: #1976d2;
     }
-    pre {
-      background: #eee;
-      max-height: 300px;
-      overflow-y: auto;
-      padding: 10px;
-      border-radius: 5px;
-      white-space: pre-wrap;
-      word-break: break-word;
+    .btn-info:hover:not(:disabled) {
+        background-color: #0d47a1;
     }
-  </style>
+    #status, #dupStatus {
+        margin-top: 15px;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        min-height: 40px;
+        white-space: pre-wrap;
+        background-color: #e3f2fd;
+        color: #1565c0;
+        user-select: text;
+    }
+    .tabs {
+        display: flex;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #ccc;
+        justify-content: center;
+        gap: 20px;
+        cursor: pointer;
+    }
+    .tab {
+        padding: 10px 18px;
+        font-weight: bold;
+        border-radius: 8px 8px 0 0;
+        background: #e0e0e0;
+        user-select: none;
+    }
+    .tab.active {
+        background: #4caf50;
+        color: white;
+        border-bottom: 2px solid white;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    /* Scroll area for status with max height */
+    #status, #dupStatus {
+        max-height: 160px;
+        overflow-y: auto;
+    }
+</style>
 </head>
 <body>
 
-  <h2>لوحة إدارة روابط الجوائز وبيانات USS - د. أحمد خالد</h2>
+<div class="container">
+    <h1>لوحة إدارة روابط الجوائز</h1>
 
-  <nav>
-    <button id="tabLinksBtn" class="active">رفع روابط الجوائز</button>
-    <button id="tabUSSBtn">فحص وتحميل USS</button>
-  </nav>
+    <div class="tabs">
+        <div id="tabLinks" class="tab active">رفع الروابط وحذفها</div>
+        <div id="tabDuplicates" class="tab">فحص التكرار وتنزيل الملف</div>
+    </div>
 
-  <!-- تبويب رفع روابط الجوائز -->
-  <section id="tabLinks" style="display:block;">
-    <label for="linkType">اختر نوع الرابط:</label>
-    <select id="linkType">
-      <option value="Super Fertilizer">سماد خارق</option>
-      <option value="Super Watering Can">دلو سقاية خارق</option>
-      <option value="Bingo">بينجو</option>
-      <option value="normalfert">125 سماد طبيعي</option>
-      <option value="Energy">طاقة</option>
-      <option value="Other">أخرى (عام)</option>
-    </select>
+    <!-- تبويب رفع الروابط -->
+    <section id="linksTab" class="tab-content active">
+        <label for="linkTypeSelect">اختر نوع الرابط:</label>
+        <select id="linkTypeSelect" aria-label="اختر نوع الرابط">
+            <option value="Super Fertilizer">سماد خارق</option>
+            <option value="Super Watering Can">دلو سقاية خارق</option>
+            <option value="Bingo">بينجو</option>
+            <option value="normalfert">125 سماد طبيعي</option>
+            <option value="Energy">طاقة</option>
+            <option value="Energy2">2 طاقة</option>
+            <option value="Yellow Package">حزمة صفراء</option>
+            <option value="Green Package">حزمة خضراء</option>
+            <option value="Yellow Coupons">قسائم صفراء</option>
+            <option value="Purple Coupons">قسائم أرجوانية</option>
+            <option value="Green Coupons">قسائم خضراء</option>
+            <option value="Other">أخرى (عام)</option>
+        </select>
 
-    <label for="linksInput">أدخل الروابط (كل رابط في سطر جديد):</label>
-    <textarea id="linksInput" placeholder="https://example.com/link1
-https://example.com/link2"></textarea>
+        <label for="fileInput">اختر ملف نصي (.txt) يحتوي على روابط الجوائز (كل رابط في سطر):</label>
+        <input type="file" id="fileInput" accept=".txt" />
 
-    <button id="uploadBtn" class="primary">🚀 رفع الروابط</button>
+        <label for="manualLinks">أو أدخل الروابط يدويًا (كل رابط في سطر):</label>
+        <textarea id="manualLinks" placeholder="https://apps.facebook.com/family-farm/ar/facebook?xxx"></textarea>
 
-    <div id="status" class="info"></div>
-  </section>
+        <button id="uploadButton" aria-label="رفع الروابط">🚀 رفع الروابط</button>
+        <button id="deleteByTypeButton" class="btn-danger" aria-label="حذف روابط النوع المحدد">🗑️ حذف روابط النوع المحدد</button>
+        <button id="deleteAllButton" class="btn-danger" aria-label="حذف جميع الروابط">🗑️ حذف جميع الروابط</button>
+        <button id="countButton" class="btn-info" aria-label="حساب عدد كل نوع">📊 حساب عدد كل نوع</button>
 
-  <!-- تبويب فحص وتحميل USS -->
-  <section id="tabUSS" style="display:none;">
-    <button id="checkDuplicatesBtn" class="primary">🔍 فحص التكرار</button>
-    <button id="downloadUniqueBtn" class="primary" style="margin-top:5px;">⬇️ تحميل ملف بدون تكرار</button>
+        <div id="status" aria-live="polite" role="status"></div>
+    </section>
 
-    <div id="ussStatus" class="info"></div>
-    <pre id="ussReport" style="display:none;"></pre>
-  </section>
+    <!-- تبويب فحص التكرار -->
+    <section id="duplicatesTab" class="tab-content">
+        <h2>📋 فحص التكرار وتنزيل الملف بدون تكرار</h2>
+        <button id="checkDuplicatesBtn" class="btn-info" aria-label="فحص التكرار">🔍 فحص التكرار</button>
+        <button id="downloadUniqueBtn" class="btn-info" aria-label="تحميل الملف بدون تكرار">⬇️ تحميل الملف بدون تكرار</button>
+        <div id="dupStatus" aria-live="polite" role="status"></div>
+    </section>
+</div>
 
-  <script>
-    // إعداد Supabase
-    const SUPABASE_URL = 'https://wuauxagghhzqrxgotcqo.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1YXV4YWdnaGh6cXJ4Z290Y3FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0NjU3NzYsImV4cCI6MjA2ODA0MTc3Nn0.W7Ayyfdh3qmrfzw_F5t35umQZRIdmqKENNdk3HYcNVE';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    // التبديل بين التبويبات
-    const tabLinksBtn = document.getElementById('tabLinksBtn');
-    const tabUSSBtn = document.getElementById('tabUSSBtn');
-    const tabLinks = document.getElementById('tabLinks');
-    const tabUSS = document.getElementById('tabUSS');
+const SUPABASE_URL = 'https://wuauxagghhzqrxgotcqo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1YXV4YWdnaGh6cXJ4Z290Y3FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0NjU3NzYsImV4cCI6MjA2ODA0MTc3Nn0.W7Ayyfdh3qmrfzw_F5t35umQZRIdmqKENNdk3HYcNVE';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    tabLinksBtn.onclick = () => {
-      tabLinks.style.display = 'block';
-      tabUSS.style.display = 'none';
-      tabLinksBtn.classList.add('active');
-      tabUSSBtn.classList.remove('active');
-      clearStatus();
+const linkTypes = {
+    'Super Fertilizer': 'سماد خارق',
+    'Super Watering Can': 'دلو سقاية خارق',
+    'Bingo': 'بينجو',
+    'normalfert': '125 سماد طبيعي',
+    'Energy': 'طاقة',
+    'Energy2': '2 طاقة',
+    'Yellow Package': 'حزمة صفراء',
+    'Green Package': 'حزمة خضراء',
+    'Yellow Coupons': 'قسائم صفراء',
+    'Purple Coupons': 'قسائم أرجوانية',
+    'Green Coupons': 'قسائم خضراء',
+    'Other': 'أخرى (عام)'
+};
+
+// --- عناصر DOM ---
+const linkTypeSelect = document.getElementById('linkTypeSelect');
+const fileInput = document.getElementById('fileInput');
+const manualLinks = document.getElementById('manualLinks');
+const uploadButton = document.getElementById('uploadButton');
+const deleteByTypeButton = document.getElementById('deleteByTypeButton');
+const deleteAllButton = document.getElementById('deleteAllButton');
+const countButton = document.getElementById('countButton');
+const status = document.getElementById('status');
+
+const checkDuplicatesBtn = document.getElementById('checkDuplicatesBtn');
+const downloadUniqueBtn = document.getElementById('downloadUniqueBtn');
+const dupStatus = document.getElementById('dupStatus');
+
+const tabLinks = document.getElementById('tabLinks');
+const tabDuplicates = document.getElementById('tabDuplicates');
+const linksTab = document.getElementById('linksTab');
+const duplicatesTab = document.getElementById('duplicatesTab');
+
+// --- تبويبات ---
+tabLinks.addEventListener('click', () => {
+    tabLinks.classList.add('active');
+    tabDuplicates.classList.remove('active');
+    linksTab.classList.add('active');
+    duplicatesTab.classList.remove('active');
+});
+tabDuplicates.addEventListener('click', () => {
+    tabDuplicates.classList.add('active');
+    tabLinks.classList.remove('active');
+    duplicatesTab.classList.add('active');
+    linksTab.classList.remove('active');
+});
+
+// --- دوال مساعدة ---
+function updateStatus(text, type='info') {
+    const colors = {
+        success: ['#E8F5E9', '#2E7D32'],
+        error: ['#fdecea', '#e74c3c'],
+        warning: ['#FFFDE7', '#FDD835'],
+        info: ['#e3f2fd', '#1e88e5']
     };
-    tabUSSBtn.onclick = () => {
-      tabLinks.style.display = 'none';
-      tabUSS.style.display = 'block';
-      tabUSSBtn.classList.add('active');
-      tabLinksBtn.classList.remove('active');
-      clearUSSStatus();
+    const [bg, fg] = colors[type] || colors.info;
+    status.style.backgroundColor = bg;
+    status.style.color = fg;
+    status.textContent = text;
+}
+
+function updateDupStatus(text, type='info') {
+    const colors = {
+        success: ['#E8F5E9', '#2E7D32'],
+        error: ['#fdecea', '#e74c3c'],
+        warning: ['#FFFDE7', '#FDD835'],
+        info: ['#e3f2fd', '#1e88e5']
     };
+    const [bg, fg] = colors[type] || colors.info;
+    dupStatus.style.backgroundColor = bg;
+    dupStatus.style.color = fg;
+    dupStatus.textContent = text;
+}
 
-    // وظائف رفع روابط الجوائز
-    const uploadBtn = document.getElementById('uploadBtn');
-    const statusDiv = document.getElementById('status');
+// --- رفع الروابط ---
+uploadButton.addEventListener('click', async () => {
+    status.textContent = '';
+    let links = [];
 
-    function showStatus(message, type = 'info') {
-      statusDiv.style.display = 'block';
-      statusDiv.textContent = message;
-      statusDiv.className = type;
-    }
-    function clearStatus() {
-      statusDiv.style.display = 'none';
-      statusDiv.textContent = '';
-    }
-
-    uploadBtn.addEventListener('click', async () => {
-      clearStatus();
-      showStatus('⏳ جاري رفع الروابط...', 'info');
-      const type = document.getElementById('linkType').value;
-      const rawLinks = document.getElementById('linksInput').value.trim();
-
-      if (!rawLinks) {
-        showStatus('⚠️ الرجاء إدخال روابط صحيحة.', 'warning');
-        return;
-      }
-
-      const links = rawLinks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-      let successCount = 0;
-
-      for (const link of links) {
+    // جلب الروابط من الملف لو موجود
+    if (fileInput.files.length > 0) {
         try {
-          const { error } = await supabase
-            .from('reward_links')
-            .insert([{ link_url: link, link_type: type, status: 'new' }]);
-
-          if (!error) {
-            successCount++;
-          } else {
-            console.error('خطأ في الإدخال:', error);
-          }
-        } catch (e) {
-          console.error('خطأ في الاتصال:', e);
+            const file = fileInput.files[0];
+            const text = await file.text();
+            links.push(...text.split('\n').map(l => l.trim()));
+        } catch {
+            updateStatus('❌ خطأ في قراءة الملف!', 'error');
+            return;
         }
-      }
-
-      showStatus(`✅ تم رفع ${successCount} رابط من أصل ${links.length}.`, 'success');
-    });
-
-    // وظائف فحص وتحميل USS
-    const checkDuplicatesBtn = document.getElementById('checkDuplicatesBtn');
-    const downloadUniqueBtn = document.getElementById('downloadUniqueBtn');
-    const ussStatus = document.getElementById('ussStatus');
-    const ussReport = document.getElementById('ussReport');
-
-    function showUSSStatus(message, type = 'info') {
-      ussStatus.style.display = 'block';
-      ussStatus.textContent = message;
-      ussStatus.className = type;
     }
-    function clearUSSStatus() {
-      ussStatus.style.display = 'none';
-      ussStatus.textContent = '';
-      ussReport.style.display = 'none';
-      ussReport.textContent = '';
+    // جلب الروابط من الإدخال اليدوي
+    if (manualLinks.value.trim() !== '') {
+        links.push(...manualLinks.value.trim().split('\n').map(l => l.trim()));
     }
 
-    async function fetchAllCheckRequests() {
-      let allData = [];
-      let from = 0;
-      const batchSize = 1000;
+    if (links.length === 0) {
+        updateStatus('❌ من فضلك اختر ملفًا أو اكتب الروابط يدويًا!', 'error');
+        return;
+    }
 
-      while (true) {
+    // تصفية الروابط الصالحة فقط
+    const validLinks = links.filter(link => link.startsWith('https://apps.facebook.com/family-farm/ar/facebook'));
+    const invalidCount = links.length - validLinks.length;
+
+    if (validLinks.length === 0) {
+        updateStatus('⚠️ جميع الروابط غير صالحة! يجب أن تبدأ بـ https://apps.facebook.com/family-farm/ar/facebook', 'warning');
+        return;
+    }
+
+    updateStatus(`⏳ جاري رفع ${validLinks.length} رابط...`, 'info');
+
+    const selectedType = linkTypeSelect.value;
+    let successCount = 0;
+
+    // رفع كل رابط بشكل منفصل (تقدر تعدل لاستخدام batch لو تحب)
+    for (const link of validLinks) {
+        const { error } = await supabase
+            .from('reward_links')
+            .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
+        if (!error) successCount++;
+    }
+
+    updateStatus(`✅ تم رفع ${successCount} رابط بنجاح!${invalidCount > 0 ? ` ⚠️ تم تجاهل ${invalidCount} رابط غير صالح.` : ''}`, 'success');
+    fileInput.value = '';
+    manualLinks.value = '';
+});
+
+// --- حذف روابط النوع المحدد ---
+deleteByTypeButton.addEventListener('click', async () => {
+    const selectedType = linkTypeSelect.value;
+    if (!confirm(`هل أنت متأكد من حذف جميع روابط النوع "${linkTypes[selectedType]}"؟ لا يمكن التراجع!`)) return;
+
+    updateStatus('⏳ جاري حذف الروابط...', 'info');
+
+    const { error } = await supabase
+        .from('reward_links')
+        .delete()
+        .eq('link_type', selectedType);
+
+    if (error) {
+        updateStatus('❌ فشل في حذف الروابط!', 'error');
+    } else {
+        updateStatus(`✅ تم حذف جميع روابط النوع: ${linkTypes[selectedType]}`, 'success');
+    }
+});
+
+// --- حذف جميع الروابط ---
+deleteAllButton.addEventListener('click', async () => {
+    if (!confirm('هل أنت متأكد من حذف جميع روابط الجوائز؟ لا يمكن التراجع!')) return;
+
+    updateStatus('⏳ جاري حذف جميع الروابط...', 'info');
+
+    const { error } = await supabase
+        .from('reward_links')
+        .delete();
+
+    if (error) {
+        updateStatus('❌ فشل في حذف جميع الروابط!', 'error');
+    } else {
+        updateStatus('✅ تم حذف جميع الروابط بنجاح!', 'success');
+    }
+});
+
+// --- حساب عدد كل نوع ---
+countButton.addEventListener('click', async () => {
+    updateStatus('🔄 جاري حساب عدد كل نوع...', 'info');
+
+    try {
+        let total = 0;
+        let resultsHtml = '';
+        for (const [key, label] of Object.entries(linkTypes)) {
+            const { count, error } = await supabase
+                .from('reward_links')
+                .select('*', { count: 'exact', head: true })
+                .eq('link_type', key);
+            if (error) {
+                resultsHtml += `${label}: خطأ في الجلب\n`;
+            } else {
+                total += count;
+                resultsHtml += `${label}: ${count}\n`;
+            }
+        }
+
+        resultsHtml += `\nإجمالي الروابط: ${total}`;
+        updateStatus(resultsHtml, 'success');
+    } catch {
+        updateStatus('❌ حدث خطأ أثناء الحساب!', 'error');
+    }
+});
+
+// ----------- تبويب فحص التكرار وتنزيل الملف -----------
+
+async function fetchAllCheckRequests() {
+    let allData = [];
+    let from = 0;
+    const batchSize = 1000;
+
+    while (true) {
         const { data, error } = await supabase
-          .from('check_requests')
-          .select('*')
-          .range(from, from + batchSize -1);
+            .from('check_requests')
+            .select('*')
+            .range(from, from + batchSize - 1);
 
         if (error) {
-          console.error('خطأ Supabase:', error);
-          showUSSStatus('❌ حدث خطأ أثناء جلب البيانات من قاعدة البيانات.', 'error');
-          return null;
+            updateDupStatus('❌ خطأ في جلب البيانات من قاعدة البيانات!', 'error');
+            return null;
         }
         if (!data || data.length === 0) break;
 
@@ -254,98 +388,86 @@ https://example.com/link2"></textarea>
         if (data.length < batchSize) break;
 
         from += batchSize;
-      }
-      return allData;
+    }
+    return allData;
+}
+
+// --- فحص التكرار ---
+checkDuplicatesBtn.addEventListener('click', async () => {
+    updateDupStatus('... جاري جلب البيانات من قاعدة البيانات ...');
+
+    const data = await fetchAllCheckRequests();
+    if (!data) {
+        updateDupStatus('❌ لم يتم جلب البيانات.', 'error');
+        return;
     }
 
-    checkDuplicatesBtn.onclick = async () => {
-      clearUSSStatus();
-      showUSSStatus('... جاري جلب البيانات من قاعدة البيانات ...', 'info');
-      const data = await fetchAllCheckRequests();
-      if (!data) {
-        showUSSStatus('❌ لم يتم جلب البيانات.', 'error');
-        return;
-      }
+    const totalRecords = data.length;
+    const countMap = {};
 
-      const totalRecords = data.length;
-      const countMap = {};
-      data.forEach(row => {
+    data.forEach(row => {
         if (!countMap[row.uss]) {
-          countMap[row.uss] = { count: 0, names: new Set(), firstHash: row.hash };
+            countMap[row.uss] = { count: 0, names: new Set(), firstHash: row.hash };
         }
         countMap[row.uss].count++;
-        if(row.name) countMap[row.uss].names.add(row.name);
-      });
+        countMap[row.uss].names.add(row.name);
+    });
 
-      const uniqueCount = Object.keys(countMap).length;
-      const totalRepeats = totalRecords - uniqueCount;
+    const uniqueCount = Object.keys(countMap).length;
+    const totalRepeats = totalRecords - uniqueCount;
 
-      if (totalRepeats === 0) {
-        showUSSStatus('✅ لا يوجد تكرار.', 'success');
-        ussReport.style.display = 'none';
+    if (totalRepeats === 0) {
+        updateDupStatus('✅ لا يوجد تكرار.', 'success');
         return;
-      }
+    }
 
-      let msg = `🔍 عدد السجلات الكلي: ${totalRecords}\n`;
-      msg += `🔍 عدد الـ uss الفريدة: ${uniqueCount}\n`;
-      msg += `📊 عدد التكرارات الفعلية: ${totalRepeats}\n\n`;
-
-      // عرض بعض الأمثلة على التكرار
-      const repeatedUSS = Object.entries(countMap)
-        .filter(([uss, info]) => info.count > 1)
-        .slice(0, 10);
-
-      if (repeatedUSS.length > 0) {
-        msg += 'أمثلة على USS المكررة:\n';
-        repeatedUSS.forEach(([uss, info]) => {
-          const names = Array.from(info.names).join(', ');
-          msg += `- uss: ${uss} (عدد التكرار: ${info.count})${names ? ' - أسماء: ' + names : ''}\n`;
-        });
-      }
-
-      ussReport.style.display = 'block';
-      ussReport.textContent = msg;
-      showUSSStatus('⚠️ تم العثور على تكرارات.', 'warning');
-    };
-
-    downloadUniqueBtn.onclick = async () => {
-      clearUSSStatus();
-      showUSSStatus('⏳ جاري جلب البيانات وتجهيز الملف...', 'info');
-
-      const data = await fetchAllCheckRequests();
-      if (!data) {
-        showUSSStatus('❌ لم يتم جلب البيانات.', 'error');
-        return;
-      }
-
-      // إزالة التكرار بناءً على uss، نأخذ أول ظهور فقط
-      const uniqueMap = new Map();
-      data.forEach(row => {
-        if (!uniqueMap.has(row.uss)) {
-          uniqueMap.set(row.uss, row);
+    let msg = `🔍 عدد السجلات الكلي: ${totalRecords}\n`;
+    msg += `🔍 عدد الـ uss الفريدة: ${uniqueCount}\n`;
+    msg += `📊 عدد التكرارات الفعلية: ${totalRepeats}\n\n`;
+    for (const uss in countMap) {
+        const info = countMap[uss];
+        if (info.count > 1) {
+            msg += `- ${[...info.names].join(', ')}: ${info.count} مرات\n`;
         }
-      });
+    }
+    updateDupStatus(msg, 'warning');
+});
 
-      // تجهيز نص الملف
-      let fileContent = 'uss,hash\n';
-      uniqueMap.forEach(row => {
-        fileContent += `${row.uss},${row.hash}\n`;
-      });
+// --- تحميل الملف بدون تكرار ---
+downloadUniqueBtn.addEventListener('click', async () => {
+    updateDupStatus('... جاري جلب البيانات لإنشاء الملف ...');
 
-      // إنشاء رابط تحميل وتنزيل الملف
-      const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'unique_uss_hash.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    const data = await fetchAllCheckRequests();
+    if (!data) {
+        updateDupStatus('❌ لم يتم جلب البيانات.', 'error');
+        return;
+    }
 
-      showUSSStatus(`✅ تم تجهيز وتحميل الملف بعد إزالة التكرارات (${uniqueMap.size} سجل).`, 'success');
-    };
+    // احتفظ فقط بأول ظهور لكل uss
+    const uniqueMap = {};
+    for (const row of data) {
+        if (!uniqueMap[row.uss]) {
+            uniqueMap[row.uss] = row.hash;
+        }
+    }
 
-  </script>
+    const lines = Object.entries(uniqueMap).map(([uss, hash]) => `${uss},${hash}`);
+    const fileContent = lines.join('\n');
+
+    // تنزيل الملف
+    const blob = new Blob([fileContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `unique_check_requests_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    updateDupStatus(`✅ تم تحميل الملف بنجاح (${lines.length} سجل فريد).`, 'success');
+});
+</script>
+
 </body>
 </html>
