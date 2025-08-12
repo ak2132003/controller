@@ -250,6 +250,7 @@ function updateDupStatus(text, type='info') {
 }
 
 // --- رفع الروابط ---
+// --- رفع الروابط ---
 uploadButton.addEventListener('click', async () => {
     status.textContent = '';
     let links = [];
@@ -289,6 +290,9 @@ uploadButton.addEventListener('click', async () => {
     const selectedType = linkTypeSelect.value;
     let successCount = 0;
     let duplicateCount = 0;
+    
+    // متغير جديد لحساب عدد الروابط التي تم رفعها بنجاح
+    let uploadedCount = 0;
 
     for (const link of validLinks) {
         // فحص وجود الرابط مسبقاً
@@ -314,7 +318,12 @@ uploadButton.addEventListener('click', async () => {
         const { error } = await supabase
             .from('reward_links')
             .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
-        if (!error) successCount++;
+        if (!error) {
+            successCount++;
+            uploadedCount++;
+            // تحديث نص الحالة في كل مرة يتم فيها رفع رابط بنجاح
+            updateStatus(`⏳ تم رفع ${uploadedCount} من أصل ${validLinks.length} رابط...`, 'info');
+        }
     }
 
     let msg = `✅ تم رفع ${successCount} رابط جديد بنجاح!`;
@@ -325,6 +334,7 @@ uploadButton.addEventListener('click', async () => {
     fileInput.value = '';
     manualLinks.value = '';
 });
+
 
 // --- حذف روابط النوع المحدد ---
 deleteByTypeButton.addEventListener('click', async () => {
