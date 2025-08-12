@@ -256,7 +256,7 @@ uploadButton.addEventListener('click', async () => {
     status.textContent = '';
     let links = [];
 
-    // جلب الروابط من الملف لو موجود
+    // جلب الروابط من الملف
     if (fileInput.files.length > 0) {
         try {
             const file = fileInput.files[0];
@@ -267,6 +267,7 @@ uploadButton.addEventListener('click', async () => {
             return;
         }
     }
+
     // جلب الروابط من الإدخال اليدوي
     if (manualLinks.value.trim() !== '') {
         links.push(...manualLinks.value.trim().split('\n').map(l => l.trim()).filter(Boolean));
@@ -280,50 +281,57 @@ uploadButton.addEventListener('click', async () => {
     // تصفية الروابط الصالحة فقط
     const validLinks = links.filter(link => link.startsWith('https://apps.facebook.com/family-farm/ar/facebook'));
     const invalidCount = links.length - validLinks.length;
-    
     if (validLinks.length === 0) {
-        updateStatus('⚠️ جميع الروابط غير صالحة! يجب أن تبدأ بـ https://apps.facebook.com/family-farm/ar/facebook', 'warning');
+        updateStatus('⚠️ جميع الروابط غير صالحة!', 'warning');
         return;
     }
 
     const selectedType = linkTypeSelect.value;
+
+    // جلب جميع الروابط الموجودة بالفعل مرة واحدة
+    updateStatus('📡 جاري جلب الروابط الموجودة للتحقق من التكرار...', 'info');
+    const { data: existingLinksData, error: fetchError } = await supabase
+        .from('reward_links')
+        .select('link_url');
+
+    if (fetchError) {
+        updateStatus('❌ فشل في جلب الروابط الحالية من قاعدة البيانات!', 'error');
+        return;
+    }
+
+    const existingLinksSet = new Set(existingLinksData.map(r => r.link_url));
+
+    // إزالة الروابط المكررة محليًا قبل الرفع
+    const uniqueNewLinks = validLinks.filter(link => !existingLinksSet.has(link));
+
+    const duplicateCount = validLinks.length - uniqueNewLinks.length;
+
+    if (uniqueNewLinks.length === 0) {
+        updateStatus(`⚠️ جميع الروابط مكررة أو غير صالحة!`, 'warning');
+        return;
+    }
+
     let successCount = 0;
-    let duplicateCount = 0;
 
-    // عرض عداد حي
-    updateStatus(`📤 جاري رفع 0 من ${validLinks.length} رابط...`, 'info');
+    updateStatus(`📤 جاري رفع 0 من ${uniqueNewLinks.length} رابط...`, 'info');
 
-    for (let i = 0; i < validLinks.length; i++) {
-        const link = validLinks[i];
+    for (let i = 0; i < uniqueNewLinks.length; i++) {
+        const link = uniqueNewLinks[i];
         try {
-            // فحص وجود الرابط مسبقاً
-            const { data: existing } = await supabase
+            const { error: insertError } = await supabase
                 .from('reward_links')
-                .select('link_url')
-                .eq('link_url', link)
-                .limit(1)
-                .maybeSingle();
+                .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
 
-            if (existing) {
-                duplicateCount++;
-            } else {
-                // إدخال الرابط
-                const { error: insertError } = await supabase
-                    .from('reward_links')
-                    .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
-                if (insertError) throw new Error(insertError.message);
-                successCount++;
-            }
+            if (insertError) throw new Error(insertError.message);
 
-            // تحديث العداد الحي
-            updateStatus(`📤 جاري رفع ${i + 1} من ${validLinks.length} رابط...`, 'info');
+            successCount++;
+            updateStatus(`📤 جاري رفع ${i + 1} من ${uniqueNewLinks.length} رابط...`, 'info');
 
         } catch (err) {
-            console.error(`Error processing link ${link}:`, err);
+            console.error(`Error uploading link ${link}:`, err);
         }
     }
 
-    // الرسالة النهائية
     let msg = `✅ تم رفع ${successCount} رابط جديد بنجاح!`;
     if (duplicateCount > 0) msg += ` ⚠️ تم تجاهل ${duplicateCount} رابط مكرر.`;
     if (invalidCount > 0) msg += ` ⚠️ تم تجاهل ${invalidCount} رابط غير صالح.`;
