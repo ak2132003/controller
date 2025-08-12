@@ -261,7 +261,7 @@ uploadButton.addEventListener('click', async () => {
         try {
             const file = fileInput.files[0];
             const text = await file.text();
-            links.push(...text.split('\n').map(l => l.trim()));
+            links.push(...text.split('\n').map(l => l.trim()).filter(Boolean));
         } catch {
             updateStatus('❌ خطأ في قراءة الملف!', 'error');
             return;
@@ -269,7 +269,7 @@ uploadButton.addEventListener('click', async () => {
     }
     // جلب الروابط من الإدخال اليدوي
     if (manualLinks.value.trim() !== '') {
-        links.push(...manualLinks.value.trim().split('\n').map(l => l.trim()));
+        links.push(...manualLinks.value.trim().split('\n').map(l => l.trim()).filter(Boolean));
     }
 
     if (links.length === 0) {
@@ -286,55 +286,44 @@ uploadButton.addEventListener('click', async () => {
         return;
     }
 
-    // رسالة البداية
-    updateStatus(`⏳ جاري رفع ${validLinks.length} رابط...`, 'info');
-
     const selectedType = linkTypeSelect.value;
     let successCount = 0;
     let duplicateCount = 0;
-    
-    // متغير جديد لحساب عدد الروابط التي تم رفعها بنجاح
-    let uploadedCount = 0;
 
-    for (const link of validLinks) {
+    // عرض عداد حي
+    updateStatus(`📤 جاري رفع 0 من ${validLinks.length} رابط...`, 'info');
+
+    for (let i = 0; i < validLinks.length; i++) {
+        const link = validLinks[i];
         try {
             // فحص وجود الرابط مسبقاً
-            const { data: existing, error: selectError } = await supabase
+            const { data: existing } = await supabase
                 .from('reward_links')
                 .select('link_url')
                 .eq('link_url', link)
                 .limit(1)
-                .single();
-
-            if (selectError && selectError.code !== 'PGRST116') { 
-                throw new Error(selectError.message);
-            }
+                .maybeSingle();
 
             if (existing) {
                 duplicateCount++;
-                continue; // تخطي الرابط لأنه مكرر
+            } else {
+                // إدخال الرابط
+                const { error: insertError } = await supabase
+                    .from('reward_links')
+                    .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
+                if (insertError) throw new Error(insertError.message);
+                successCount++;
             }
 
-            // إدخال الرابط لأنه غير موجود مسبقاً
-            const { error: insertError } = await supabase
-                .from('reward_links')
-                .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
-
-            if (insertError) {
-                throw new Error(insertError.message);
-            }
-            
-            successCount++;
-            uploadedCount++;
-            // تحديث نص الحالة في كل مرة يتم فيها رفع رابط بنجاح
-            updateStatus(`⏳ تم رفع ${uploadedCount} من أصل ${validLinks.length} رابط...`, 'info');
+            // تحديث العداد الحي
+            updateStatus(`📤 جاري رفع ${i + 1} من ${validLinks.length} رابط...`, 'info');
 
         } catch (err) {
             console.error(`Error processing link ${link}:`, err);
-            // يمكنك إضافة تحديث لحالة الخطأ إذا أردت
         }
     }
 
+    // الرسالة النهائية
     let msg = `✅ تم رفع ${successCount} رابط جديد بنجاح!`;
     if (duplicateCount > 0) msg += ` ⚠️ تم تجاهل ${duplicateCount} رابط مكرر.`;
     if (invalidCount > 0) msg += ` ⚠️ تم تجاهل ${invalidCount} رابط غير صالح.`;
