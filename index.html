@@ -251,6 +251,7 @@ function updateDupStatus(text, type='info') {
 
 // --- رفع الروابط ---
 // --- رفع الروابط ---
+// --- رفع الروابط ---
 uploadButton.addEventListener('click', async () => {
     status.textContent = '';
     let links = [];
@@ -279,12 +280,13 @@ uploadButton.addEventListener('click', async () => {
     // تصفية الروابط الصالحة فقط
     const validLinks = links.filter(link => link.startsWith('https://apps.facebook.com/family-farm/ar/facebook'));
     const invalidCount = links.length - validLinks.length;
-
+    
     if (validLinks.length === 0) {
         updateStatus('⚠️ جميع الروابط غير صالحة! يجب أن تبدأ بـ https://apps.facebook.com/family-farm/ar/facebook', 'warning');
         return;
     }
 
+    // رسالة البداية
     updateStatus(`⏳ جاري رفع ${validLinks.length} رابط...`, 'info');
 
     const selectedType = linkTypeSelect.value;
@@ -295,34 +297,41 @@ uploadButton.addEventListener('click', async () => {
     let uploadedCount = 0;
 
     for (const link of validLinks) {
-        // فحص وجود الرابط مسبقاً
-        const { data: existing, error: selectError } = await supabase
-            .from('reward_links')
-            .select('link_url')
-            .eq('link_url', link)
-            .limit(1)
-            .single();
+        try {
+            // فحص وجود الرابط مسبقاً
+            const { data: existing, error: selectError } = await supabase
+                .from('reward_links')
+                .select('link_url')
+                .eq('link_url', link)
+                .limit(1)
+                .single();
 
-        if (selectError && selectError.code !== 'PGRST116') { 
-            // خطأ غير "لم يتم العثور"
-            updateStatus(`❌ خطأ في فحص الرابط: ${link}`, 'error');
-            continue;
-        }
+            if (selectError && selectError.code !== 'PGRST116') { 
+                throw new Error(selectError.message);
+            }
 
-        if (existing) {
-            duplicateCount++;
-            continue; // تخطي الرابط لأنه مكرر
-        }
+            if (existing) {
+                duplicateCount++;
+                continue; // تخطي الرابط لأنه مكرر
+            }
 
-        // إدخال الرابط لأنه غير موجود مسبقاً
-        const { error } = await supabase
-            .from('reward_links')
-            .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
-        if (!error) {
+            // إدخال الرابط لأنه غير موجود مسبقاً
+            const { error: insertError } = await supabase
+                .from('reward_links')
+                .insert([{ link_url: link, status: 'new', link_type: selectedType }]);
+
+            if (insertError) {
+                throw new Error(insertError.message);
+            }
+            
             successCount++;
             uploadedCount++;
             // تحديث نص الحالة في كل مرة يتم فيها رفع رابط بنجاح
             updateStatus(`⏳ تم رفع ${uploadedCount} من أصل ${validLinks.length} رابط...`, 'info');
+
+        } catch (err) {
+            console.error(`Error processing link ${link}:`, err);
+            // يمكنك إضافة تحديث لحالة الخطأ إذا أردت
         }
     }
 
@@ -334,6 +343,7 @@ uploadButton.addEventListener('click', async () => {
     fileInput.value = '';
     manualLinks.value = '';
 });
+
 
 
 // --- حذف روابط النوع المحدد ---
