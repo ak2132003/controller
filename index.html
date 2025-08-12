@@ -327,24 +327,25 @@ uploadButton.addEventListener('click', async () => {
 
     const batches = chunkArray(uniqueNewLinks, 50);
 
-for (const batch of batches) {
-    await supabase.from('reward_links').insert(
+for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+
+    const { error: insertError } = await supabase.from('reward_links').insert(
         batch.map(link => ({
             link_url: link,
             status: 'new',
             link_type: selectedType
         }))
     );
-}
-            if (insertError) throw new Error(insertError.message);
 
-            successCount++;
-            updateStatus(`📤 جاري رفع ${i + 1} من ${uniqueNewLinks.length} رابط...`, 'info');
-
-        } catch (err) {
-            console.error(`Error uploading link ${link}:`, err);
-        }
+    if (insertError) {
+        console.error('خطأ أثناء رفع دفعة:', insertError);
+    } else {
+        successCount += batch.length;
     }
+
+    updateStatus(`📤 جاري رفع ${successCount} من ${uniqueNewLinks.length} رابط...`, 'info');
+}
 
     let msg = `✅ تم رفع ${successCount} رابط جديد بنجاح!`;
     if (duplicateCount > 0) msg += ` ⚠️ تم تجاهل ${duplicateCount} رابط مكرر.`;
