@@ -222,7 +222,37 @@ tabDuplicates.addEventListener('click', () => {
     linksTab.classList.remove('active');
 });
 
+
 // --- دوال مساعدة ---
+function chunkArray(array, size) {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+        result.push(array.slice(i, i + size));
+    }
+    return result;
+}
+
+uploadButton.addEventListener('click', async () => {
+    // ... نفس الكود الخاص بالفلترة
+    const batches = chunkArray(uniqueNewLinks, 20); // رفع كل 20 رابط مرة
+
+    let uploaded = 0;
+    for (const batch of batches) {
+        const { error } = await supabase
+            .from('reward_links')
+            .insert(batch.map(link => ({
+                link_url: link,
+                status: 'new',
+                link_type: selectedType
+            })));
+
+        if (error) console.error(error);
+        uploaded += batch.length;
+        updateStatus(`📤 جاري رفع ${uploaded} من ${uniqueNewLinks.length} رابط...`, 'info');
+    }
+
+    updateStatus(`✅ تم رفع ${uploaded} رابط بنجاح!`, 'success');
+});
 function updateStatus(text, type='info') {
     const colors = {
         success: ['#E8F5E9', '#2E7D32'],
